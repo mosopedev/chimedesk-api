@@ -11,6 +11,15 @@ export const createBusiness = Joi.object({
 export const buyPhoneNumber = Joi.object({
     businessId: Joi.string().required().label('Business ID'),
     phoneNumber: Joi.string().required().label('Phone Number'),
+    country: Joi.string().required().label('Country Code')
+})
+
+export const configureBusiness = Joi.object({
+    businessId: Joi.string().required().label('Business ID'),
+    humanOperatorNumbers: Joi.array().items(
+        Joi.string()
+    ).required().label('Human Operator Phone number'),
+    webhook: Joi.string().required()
 })
 
 export const addAgentAction = Joi.object({

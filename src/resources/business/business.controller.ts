@@ -12,6 +12,7 @@ import BusinessService from "./business.service";
 import { upload } from '@/configs/multer'
 import fs from 'fs';
 import path from "path";
+import axios from "axios";
 
 class BusinessController implements IController {
     public path = '/business'
@@ -30,6 +31,8 @@ class BusinessController implements IController {
         this.router.post(`${this.path}/knowledge-base`, upload.single('file'), authenticatedMiddleware, this.parseKnowledgeBase)
         this.router.post(`${this.path}/actions/create`, validationMiddleware(validation.addAgentAction), authenticatedMiddleware, this.addAgentAction)
         this.router.post(`${this.path}/actions/remove`, validationMiddleware(validation.removeAction), authenticatedMiddleware, this.removeAgentAction)
+        this.router.get(`${this.path}/:businessId/actions/:action`, authenticatedMiddleware, this.getAgentAction)
+        this.router.put(`${this.path}/configure`, validationMiddleware(validation.configureBusiness), authenticatedMiddleware, this.configureBusiness)
     }
 
     private createBusiness = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
@@ -74,9 +77,9 @@ class BusinessController implements IController {
 
     private purchasePhoneNumber = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
         try {
-            const { businessId, phoneNumber } = req.body;
+            const { businessId, phoneNumber, country } = req.body;
 
-            await this.businessService.buyPhoneNumber(phoneNumber, businessId)
+            await this.businessService.buyPhoneNumber(phoneNumber, country, businessId)
 
             successResponse(200, 'Phone number purchase successful', res)
         } catch (error: any) {
@@ -122,6 +125,30 @@ class BusinessController implements IController {
             await this.businessService.removeAction(businessId, actionId)
 
             successResponse(200, 'Agent action removed successful', res)
+        } catch (error: any) {
+            return next(new HttpException(400, error.message));
+        }
+    }
+
+    private getAgentAction = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
+        try {
+            const { businessId, action } = req.params;
+
+            const response = await this.businessService.getBusinessAction(businessId, action)
+
+            successResponse(200, 'Agent action removed successful', res, response)
+        } catch (error: any) {
+            return next(new HttpException(400, error.message));
+        }
+    }
+
+    private configureBusiness = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
+        try {
+            const { humanOperatorNumbers, webhook, businessId } = req.body;
+
+            const response = await this.businessService.configureBusiness(businessId, humanOperatorNumbers, webhook)
+
+            successResponse(200, 'Business updated successfully', res, response)
         } catch (error: any) {
             return next(new HttpException(400, error.message));
         }

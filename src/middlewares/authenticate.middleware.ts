@@ -14,6 +14,7 @@ async function authenticatedMiddleware(
 ): Promise<Response | void> {
     const bearer = req.headers.authorization
     const refreshToken = req.cookies?.refreshToken
+    
 
     if (!bearer || !bearer.startsWith('Bearer ') || !refreshToken) {
         logger('Unauthorized - Auth token required')
@@ -25,7 +26,7 @@ async function authenticatedMiddleware(
     try {
         const payload: Token | jwt.JwtPayload | jwt.JsonWebTokenError = await token.verifyToken(accessToken, true)
         const refreshTokenPayload: jwt.JwtPayload | jwt.JsonWebTokenError = await token.verifyToken(refreshToken, false)
-        
+
         // both refresh and access token are expired. login required
         if (payload instanceof jwt.JsonWebTokenError && refreshTokenPayload instanceof jwt.JsonWebTokenError) {
             logger('Both tokens expired')

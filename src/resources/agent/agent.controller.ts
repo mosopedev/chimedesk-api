@@ -7,9 +7,10 @@ import twilio from "twilio";
 import Voice from "twilio/lib/rest/Voice";
 import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 import AgentService from "./agent.service";
+import HttpException from "../../exceptions/http.exception";
 
 class AgentController implements IController {
-    public readonly path = "/support";
+    public readonly path = "/agent";
     public readonly router = Router();
     private readonly agentService = new AgentService;
     private readonly openAiClient = new OpenAI({
@@ -29,6 +30,7 @@ class AgentController implements IController {
     private initializeEndpoints(): void {
         this.router.post(`${this.path}/call/accept`, this.acceptPhoneCall);
         this.router.post(`${this.path}/call/analyze`, this.analyzeIntent);
+        this.router.post(`${this.path}/call/responder`, this.actionResponder)
     }
 
     private acceptPhoneCall = async (
@@ -45,13 +47,14 @@ class AgentController implements IController {
             res.send(updatedTwiml.toString());
         } catch (error: any) {            
             logger(error);
+            return next(new HttpException(400, error.message));
         }
     };
 
     private analyzeIntent = async (
         req: Request,
         res: Response,
-        NextFunction: NextFunction
+        next: NextFunction
     ): Promise<void> => {
         try {
             const { SpeechResult } = req.body;
@@ -67,16 +70,30 @@ class AgentController implements IController {
             res.send(updatedTwiml.toString());
         } catch (error: any) {
             logger(error);
+            return next(new HttpException(400, error.message));
         }
     };
 
-    private agentHandler = async (
+    private actionResponder = async (
         req: Request,
         res: Response,
-        NextFunction: NextFunction
+        next: NextFunction
     ): Promise<void> => {
         try {
-        } catch (error: any) { }
+
+            // gets the last message and responds to user, and gather after to redirect to analayzer
+
+            const twiml = new VoiceResponse();
+
+            let { th_id, bus_id, ass_id, run_id }: any = req.query;
+            const updatedTwiml = await this.agentService.actionResponder(twiml, th_id, bus_id, ass_id, run_id)
+           
+            res.type("text/xml");
+            res.send(updatedTwiml?.toString());
+        } catch (error: any) { 
+            logger(error);
+            return next(new HttpException(400, error.message));
+        }
     };
 }
 
