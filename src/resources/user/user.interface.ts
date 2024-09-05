@@ -17,6 +17,9 @@ interface IUser {
     resetPasswordToken: {
         token: string,
         expires: Date
+    };
+    stripeCustomer: {
+        id: string
     }
     
     isValidPassword(password: string): Promise<Error | boolean>; 

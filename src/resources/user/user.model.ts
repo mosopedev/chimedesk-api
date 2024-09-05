@@ -31,6 +31,9 @@ const UserSchema = new Schema({
   resetPasswordToken: {
     token: String,
     expires: Date
+  },
+  stripeCustomer: {
+    type: Object
   }
 }, { timestamps: true });
 

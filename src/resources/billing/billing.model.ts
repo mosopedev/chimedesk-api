@@ -14,7 +14,7 @@ const BillingModel = new Schema(
       type: String,
       trim: true,
       default: 'pending',
-      enum: ['pending', 'success', 'failed'],
+      enum: ['pending', 'success', 'failed', 'canceled'],
       required: true
     },
     processingFees: { type: Number, default: 0 },
@@ -24,7 +24,8 @@ const BillingModel = new Schema(
     },
     description: { type: String, required: true },
     businessId: { type: Schema.ObjectId, ref: 'Business', required: true },
-    paymentDetails: { type: Object }
+    paymentDetails: { type: Object },
+    paymentIntentId: { type: String }
   },
   {
     timestamps: true,

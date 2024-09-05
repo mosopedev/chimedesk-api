@@ -23,6 +23,21 @@ class UsageController implements IController {
     }
 
     private initializeRoutes(): void {
+        this.router.get(`${this.path}/business/:businessId/calls`, authenticatedMiddleware, this.getBusinessCallLog)
+    }
+
+    private getBusinessCallLog = async (req: Request | any, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const { businessId } = req.params;
+
+            if(!businessId) throw new Error("Invalid request. Provide business ID.")
+
+            const response = await this.usageService.getBusinessCallUsage(businessId)
+
+            successResponse(200, 'Business call log retrieved', res, response);
+        } catch (error: any) {
+            return next(new HttpException(400, error.message));
+        }
     }
 }
 

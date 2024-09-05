@@ -26,6 +26,7 @@ class AuthController implements IController{
         this.router.post(`${this.path}/verify-account`, validationMiddleware(validation.verifyEmail), authenticatedMiddleware, this.verifyEmail)
         this.router.post(`${this.path}/forgot-password`, validationMiddleware(validation.forgotPassword), this.forgotPassword)
         this.router.post(`${this.path}/reset-password`, validationMiddleware(validation.resetPassword), this.resetPassword)
+        this.router.post(`${this.path}/resend-verification`, this.resendVerificationCode)
     }
 
     private signup = async (req: Request, res: Response, next: NextFunction): Promise<IUser | void> => {
@@ -60,9 +61,9 @@ class AuthController implements IController{
 
     private verifyEmail = async (req: Request | any, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const { token } = req.body;
+            const { token, email } = req.body;
 
-            await this.authService.verifyEmail(token, req.user)
+            await this.authService.verifyEmail(token, email)
 
             successResponse(200, 'Account verified successfully.', res)
         } catch (error: any) {
@@ -89,6 +90,16 @@ class AuthController implements IController{
             await this.authService.resetPassword(email, token, password)
 
             successResponse(200, 'Password reset successfully', res)
+        } catch (error: any) {
+            return next(new HttpException(400, error.message));
+        }
+    }
+
+    private resendVerificationCode = async (req: Request | any, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            await this.authService.resendEmailVerificationCode(req.body.email)
+
+            successResponse(200, 'Email sent successfully', res)
         } catch (error: any) {
             return next(new HttpException(400, error.message));
         }

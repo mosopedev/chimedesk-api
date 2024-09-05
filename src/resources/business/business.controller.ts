@@ -25,14 +25,8 @@ class BusinessController implements IController {
 
     private initializeRoutes(): void {
         this.router.post(`${this.path}/create`, validationMiddleware(validation.createBusiness), authenticatedMiddleware, this.createBusiness)
-        this.router.get(`${this.path}/phones/:country`, authenticatedMiddleware, this.getAvailableNumbers)
         this.router.get(`${this.path}/:businessId`, authenticatedMiddleware, this.getBusiness)
-        this.router.post(`${this.path}/phones/buy`, validationMiddleware(validation.buyPhoneNumber), authenticatedMiddleware, this.purchasePhoneNumber)
         this.router.post(`${this.path}/knowledge-base`, upload.single('file'), authenticatedMiddleware, this.parseKnowledgeBase)
-        this.router.post(`${this.path}/actions/create`, validationMiddleware(validation.addAgentAction), authenticatedMiddleware, this.addAgentAction)
-        this.router.post(`${this.path}/actions/remove`, validationMiddleware(validation.removeAction), authenticatedMiddleware, this.removeAgentAction)
-        this.router.get(`${this.path}/:businessId/actions/:action`, authenticatedMiddleware, this.getAgentAction)
-        this.router.put(`${this.path}/configure`, validationMiddleware(validation.configureBusiness), authenticatedMiddleware, this.configureBusiness)
     }
 
     private createBusiness = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
@@ -61,32 +55,6 @@ class BusinessController implements IController {
         }
     }
 
-    private getAvailableNumbers = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
-        try {
-            const { country } = req.params;
-
-            if (!country) throw new Error("Invalid country code.")
-
-            const response = await this.businessService.getAvailablePhoneNumbers(country)
-            logger(response)
-            successResponse(200, 'Numbers retrieved successful', res, response)
-        } catch (error: any) {
-            return next(new HttpException(400, error.message));
-        }
-    }
-
-    private purchasePhoneNumber = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
-        try {
-            const { businessId, phoneNumber, country } = req.body;
-
-            await this.businessService.buyPhoneNumber(phoneNumber, country, businessId)
-
-            successResponse(200, 'Phone number purchase successful', res)
-        } catch (error: any) {
-            return next(new HttpException(400, error.message));
-        }
-    }
-
     private parseKnowledgeBase = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
         try {
             if (!req.file) {
@@ -101,54 +69,6 @@ class BusinessController implements IController {
             await this.businessService.parseKnowledgeBase(pdfData.text, req.body.businessId)
 
             successResponse(200, 'Knowledge base parsed successful', res)
-        } catch (error: any) {
-            return next(new HttpException(400, error.message));
-        }
-    }
-
-    private addAgentAction = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
-        try {
-            const { businessId, actionData } = req.body;
-
-            await this.businessService.addAction(actionData, businessId)
-
-            successResponse(200, 'Agent action added successful', res)
-        } catch (error: any) {
-            return next(new HttpException(400, error.message));
-        }
-    }
-
-    private removeAgentAction = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
-        try {
-            const { businessId, actionId } = req.body;
-
-            await this.businessService.removeAction(businessId, actionId)
-
-            successResponse(200, 'Agent action removed successful', res)
-        } catch (error: any) {
-            return next(new HttpException(400, error.message));
-        }
-    }
-
-    private getAgentAction = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
-        try {
-            const { businessId, action } = req.params;
-
-            const response = await this.businessService.getBusinessAction(businessId, action)
-
-            successResponse(200, 'Agent action removed successful', res, response)
-        } catch (error: any) {
-            return next(new HttpException(400, error.message));
-        }
-    }
-
-    private configureBusiness = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
-        try {
-            const { humanOperatorNumbers, webhook, businessId } = req.body;
-
-            const response = await this.businessService.configureBusiness(businessId, humanOperatorNumbers, webhook)
-
-            successResponse(200, 'Business updated successfully', res, response)
         } catch (error: any) {
             return next(new HttpException(400, error.message));
         }

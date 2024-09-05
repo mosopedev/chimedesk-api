@@ -14,6 +14,7 @@ export const login = Joi.object({
 
 export const verifyEmail = Joi.object({
     token: Joi.string().min(5).required().label('Token'),
+    email: Joi.string().email().required().label('Email'),
 }) 
 
 export const forgotPassword = Joi.object({

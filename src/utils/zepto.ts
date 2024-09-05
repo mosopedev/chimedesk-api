@@ -34,7 +34,6 @@ const sendMail = async (templateAlias: string, receiver: { email: string, name: 
             }
         })
 
-        console.log(response.data)
         return response.data
     } catch (error: any) {
         console.log(error?.response?.data.error)

@@ -1,24 +1,45 @@
 import translateError from "@/utils/mongod.helper";
-import userModel from '../user/user.model';
-import IUser from '../user/user.interface';
-import * as token from '@/utils/token'
-import logger from '@/utils/logger';
+import userModel from "../user/user.model";
+import IUser from "../user/user.interface";
+import * as token from "@/utils/token";
+import { ObjectId } from "mongoose";
+import logger from "@/utils/logger";
 import authModel from "./auth.model";
 import IAuth from "./auth.interface";
 import sendMail from "@/utils/zepto";
-import bcrypt from 'bcrypt'
+import bcrypt from "bcrypt";
 import generateOtp from "@/utils/otp";
 import moment from "moment";
-
+import Stripe from "stripe";
 
 class AuthService {
-  public async signup(firstname: string, password: string, email: string, lastname: string): Promise<{
-    accessToken: string, refreshToken: string
+  private readonly stripe = new Stripe(`${process.env.STRIPE_SECRET_KEY}`);
+  public async signup(
+    firstname: string,
+    password: string,
+    email: string,
+    lastname: string
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
   }> {
     try {
-      if (!(await this.validatePasswordPolicy(password))) throw new Error('Password is not secure. Include at least one uppercase, lowercase, special character and number.')
+      if (!(await this.validatePasswordPolicy(password)))
+        throw new Error(
+          "Password is not secure. Include at least one uppercase, lowercase, special character and number."
+        );
 
-      const otp = generateOtp(5)
+      const otp = generateOtp(5);
+
+      const customer = await this.stripe.customers.create({
+        name: `${firstname} ${lastname}`,
+        email,
+      });
+
+      if (!customer)
+        throw new Error("Unable to create your account. Please try again.");
+
+      logger(customer);
 
       const user = await userModel.create({
         firstname,
@@ -27,72 +48,90 @@ class AuthService {
         password,
         emailVerificationToken: {
           token: otp,
-          expires: moment(new Date()).add(5, "m").toDate()
-        }
-      })
+          expires: moment(new Date()).add(5, "m").toDate(),
+        },
+        stripeCustomer: customer,
+      });
 
-      if (!user) throw new Error('Unable to create your account. Please try again.')
+      if (!user)
+        throw new Error("Unable to create your account. Please try again.");
 
-      const accessToken = await token.generateToken(user.id, true)
-      const refreshToken = await token.generateToken(user.id, false)
+      const accessToken = await token.generateToken(user.id, true);
+      const refreshToken = await token.generateToken(user.id, false);
 
       // log session
       const authSession: IAuth = await authModel.create({
         userId: user.id,
         refreshToken: refreshToken,
-      })
-
-      logger(accessToken, refreshToken, authSession)
-
+      });
 
       await sendMail(
         "chimecall-wel-mail",
         {
           email,
-          name: `${firstname} ${lastname}`
-        }, "Welcome to Chime Call ☎️",
+          name: `${firstname} ${lastname}`,
+        },
+        "Welcome to Chime Call ☎️",
         {
-          "name": `${firstname} ${lastname}`,
-          "product_name": 'Chime Call',
-          "verification_code": otp
-        })
+          name: `${firstname} ${lastname}`,
+          product_name: "Chime Call",
+          verification_code: otp,
+        }
+      );
 
       return {
         accessToken,
-        refreshToken
+        refreshToken,
       };
     } catch (error) {
-      logger(error)
-      throw new Error(translateError(error)[0] || 'Unable to create your account. Please try again.')
+      logger(error);
+      throw new Error(
+        translateError(error)[0] ||
+          "Unable to create your account. Please try again."
+      );
     }
   }
 
-  public async login(email: string, password: string): Promise<{
-    accessToken: string, refreshToken: string, user: { firstname: string, lastname: string, email: string, photo?: string, isEmailVerified: boolean }
+  public async login(
+    email: string,
+    password: string
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: {
+      firstname: string;
+      lastname: string;
+      email: string;
+      photo?: string;
+      isEmailVerified: boolean;
+    };
   }> {
     try {
-      const user: IUser | null = await userModel.findOne({ email: email.toLowerCase() })
+      const user: IUser | null = await userModel.findOne({
+        email: email.toLowerCase(),
+      });
 
-      if (!user) throw new Error('Incorrect email or password')
+      if (!user) throw new Error("Incorrect email or password");
 
-      const { firstname, lastname, isEmailVerified } = user
+      const { firstname, lastname, isEmailVerified } = user;
 
-      if (!user.isEmailVerified) throw new Error("Please verify your email.")
+      if (!user.isEmailVerified) throw new Error("Please verify your email.");
 
-      if (!(await user.isValidPassword(password))) throw new Error('Incorrect email or password')
+      if (!(await user.isValidPassword(password)))
+        throw new Error("Incorrect email or password");
 
       // End user's existing session, if any
-      await authModel.deleteOne({ userId: user.id })
+      await authModel.deleteOne({ userId: user.id });
 
-      const accessToken = await token.generateToken(user.id, true)
-      const refreshToken = await token.generateToken(user.id, false)
+      const accessToken = await token.generateToken(user.id, true);
+      const refreshToken = await token.generateToken(user.id, false);
 
       // Log new user session
       const authSession: IAuth = await authModel.create({
         userId: user.id,
         refreshToken: refreshToken,
-      })
-      logger(authSession)
+      });
+      logger(authSession);
 
       return {
         accessToken,
@@ -101,15 +140,48 @@ class AuthService {
           firstname,
           lastname,
           email,
-          isEmailVerified
-        }
-      }
-
+          isEmailVerified,
+        },
+      };
     } catch (error: any) {
-      logger(error)
-      throw new Error(translateError(error)[0] || 'Incorrect email or password.')
+      logger(error);
+      throw new Error(
+        translateError(error)[0] || "Incorrect email or password."
+      );
     }
+  }
 
+  public async resendEmailVerificationCode(email: string): Promise<void> {
+    try {
+      const otp = generateOtp(5);
+
+      const user = await userModel.findOneAndUpdate({ email: email.toLowerCase() }, {
+        emailVerificationToken: {
+          token: otp,
+          expires: moment(new Date()).add(5, 'm').toDate()
+        },
+      }, { new: true });
+
+      if (!user) throw new Error("User not found.");
+
+      const { firstname, lastname } = user;
+
+      await sendMail(
+        "chimecall-wel-mail",
+        {
+          email,
+          name: `${firstname} ${lastname}`,
+        },
+        "Welcome to Chime Call ☎️",
+        {
+          name: `${firstname} ${lastname}`,
+          product_name: "Chime Call",
+          verification_code: otp,
+        }
+      );
+    } catch (error: any) {
+      throw new Error(error || 'Unable to send verification code. Please try again.')
+    }
   }
 
   private async validatePasswordPolicy(password: string): Promise<Boolean> {
@@ -149,77 +221,95 @@ class AuthService {
     }
   }
 
-  public async verifyEmail(formToken: string, id: string): Promise<void> {
+  public async verifyEmail(formToken: string, email: string): Promise<void> {
     try {
-      const user: IUser | null = await userModel.findById(id)
+      const user: IUser | null = await userModel.findOne({email});
 
-      if (!user) throw new Error('Unable to verify email. Account not found')
+      if (!user) throw new Error("Unable to verify email. Account not found");
 
-      const { token, expires } = user.emailVerificationToken
+      const { token, expires } = user.emailVerificationToken;
 
-      if (Date.now() > new Date(expires).getTime() || token != formToken) throw new Error("Invalid or expired token.")
+      if (Date.now() > new Date(expires).getTime() || token != formToken)
+        throw new Error("Invalid or expired token.");
 
-      const updatedUser = await userModel.findByIdAndUpdate(id, {
-        isEmailVerified: true
-      })
+      const updatedUser = await userModel.findOneAndUpdate({email}, {
+        isEmailVerified: true,
+      });
 
-      if (!updatedUser) throw new Error("Unable to verify email. Please try again.")
+      if (!updatedUser)
+        throw new Error("Unable to verify email. Please try again.");
     } catch (error: any) {
-      throw new Error(
-        error || "Unable to verify email. Please try again."
-      );
+      throw new Error(error || "Unable to verify email. Please try again.");
     }
   }
 
   public async forgotPassword(email: string): Promise<void> {
     try {
-      const otp = generateOtp(5)
+      const otp = generateOtp(5);
 
-      const user: IUser | null = await userModel.findOneAndUpdate({ email }, {
-        resetPasswordToken: {
-          token: otp,
-          expires: moment(new Date).add(5, 'm').toDate()
+      const user: IUser | null = await userModel.findOneAndUpdate(
+        { email },
+        {
+          resetPasswordToken: {
+            token: otp,
+            expires: moment(new Date()).add(5, "m").toDate(),
+          },
         }
-      })
+      );
 
-    if (!user) throw new Error('Unable to send reset password mail. Account not found.')
+      if (!user)
+        throw new Error(
+          "Unable to send reset password mail. Account not found."
+        );
 
-    const { firstname, lastname } = user;
+      const { firstname, lastname } = user;
 
-    await sendMail(
-      "chime-reset-password",
-      {
-        email,
-        name: `${firstname} ${lastname}`
-      }, "Reset your password",
-      {
-        "name": `${firstname} ${lastname}`,
-        "product_name": 'Chime Call',
-        "verification_code": otp
-      })
+      await sendMail(
+        "chime-reset-password",
+        {
+          email,
+          name: `${firstname} ${lastname}`,
+        },
+        "Reset your password",
+        {
+          name: `${firstname} ${lastname}`,
+          product_name: "Chime Call",
+          verification_code: otp,
+        }
+      );
     } catch (error: any) {
-      throw new Error(error || 'Unable to send forgot password email. Please try again')
-    } 
+      throw new Error(
+        error || "Unable to send forgot password email. Please try again"
+      );
+    }
   }
 
-  public async resetPassword(email: string, formToken: string, password: string) {
+  public async resetPassword(
+    email: string,
+    formToken: string,
+    password: string
+  ) {
     try {
-      const user = await userModel.findOne({email})
+      const user = await userModel.findOne({ email });
 
-      if(!user) throw new Error("Unable to reset password. Account not found.")
+      if (!user)
+        throw new Error("Unable to reset password. Account not found.");
 
-      const { token, expires } = user.resetPasswordToken
+      const { token, expires } = user.resetPasswordToken;
 
-      if (Date.now() > new Date(expires).getTime() || token != formToken) throw new Error("Invalid or expired token.")
+      if (Date.now() > new Date(expires).getTime() || token != formToken)
+        throw new Error("Invalid or expired token.");
 
-      await userModel.findOneAndUpdate({
-        email
-      }, { password: await bcrypt.hash(password, 10)})
-
+      await userModel.findOneAndUpdate(
+        {
+          email,
+        },
+        { password: await bcrypt.hash(password, 10) }
+      );
     } catch (error: any) {
-      throw new Error(error || 'Unable to reset password. Please try again')
+      throw new Error(error || "Unable to reset password. Please try again");
     }
   }
 }
 
-export default AuthService
+export default AuthService;

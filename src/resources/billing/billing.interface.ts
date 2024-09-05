@@ -6,5 +6,6 @@ export default interface IBilling {
   amount: number;
   description: String;
   businessId: String;
-  paymentDetails: {}
+  paymentDetails: {},
+  paymentIntentId: string;
 }
