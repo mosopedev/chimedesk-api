@@ -5,8 +5,7 @@ export const createBusiness = Joi.object({
   website: Joi.string().label("Website"),
   email: Joi.string().email().required().label("Business Email"),
   country: Joi.string().required().label("Country"),
-  primaryLanguage: Joi.string().required().label("Primary Language"),
-  humanOperatorNumbers: Joi.array()
+  humanOperatorPhoneNumbers: Joi.array()
     .items(Joi.string())
     .required()
     .label("Human Operator Phone number"),

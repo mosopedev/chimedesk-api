@@ -10,6 +10,7 @@ const UsageModel = new Schema(
     currency:  { type: String, default: 'USD', required: true },
     businessId: { type: Schema.ObjectId, ref: 'Business', required: true },
     threadId: { type: String, required: true },
+    agentId: { type: Schema.ObjectId, ref: 'Agent', required: true }
   },
   {
     timestamps: true,

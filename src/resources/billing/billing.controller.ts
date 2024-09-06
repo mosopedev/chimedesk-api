@@ -72,7 +72,10 @@ class BillingController implements IController {
 
       if (!businessId) throw new Error("Invalid request: Provide business ID");
 
-      const response = await this.billingService.getBusinessBalance(businessId, req.user);
+      const response = await this.billingService.getBusinessBalance(
+        businessId,
+        req.user
+      );
 
       successResponse(200, "Balance retrieved successfully", res, response);
     } catch (error: any) {
@@ -106,7 +109,7 @@ class BillingController implements IController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const eventData = JSON.parse(req.body.toString('utf-8'))
+      const eventData = JSON.parse(req.body.toString("utf-8"));
 
       const stripe = new Stripe(`${process.env.STRIPE_SECRET_KEY}`);
 
@@ -118,7 +121,7 @@ class BillingController implements IController {
           `${process.env.STRIPE_WEBHOOK_SECRET}`
         );
       } catch (err: any) {
-        logger(err)
+        logger(err);
         throw new Error(`⚠️  Webhook signature verification failed.`);
       }
 
@@ -126,7 +129,7 @@ class BillingController implements IController {
 
       successResponse(200, "Payment intent updated successfully", res);
     } catch (error: any) {
-        logger(error)
+      logger(error);
       next(new HttpException(400, error.message));
     }
   };

@@ -10,7 +10,8 @@ class UsageService {
   public async addTokenUsage(
     usage: OpenAI.Beta.Threads.Run.Usage,
     businessId: string,
-    threadId: string
+    threadId: string,
+    agentId: string
   ): Promise<IUsage> {
     try {
       const usageData = await usageModel.create({
@@ -23,6 +24,7 @@ class UsageService {
           100,
         businessId,
         threadId,
+        agentId
       });
 
       return usageData;

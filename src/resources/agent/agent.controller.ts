@@ -31,7 +31,7 @@ class AgentController implements IController {
   }
 
   private initializeEndpoints(): void {
-    this.router.post(`${this.path}/create`, authenticatedMiddleware, validationMiddleware(validation.createAgent))
+    this.router.post(`${this.path}/create`, authenticatedMiddleware, validationMiddleware(validation.createAgent), this.createAgent)
     this.router.post(`${this.path}/call/accept`, this.acceptPhoneCall);
     this.router.post(`${this.path}/call/analyze`, this.analyzeCallIntent);
     this.router.post(`${this.path}/call/responder`, this.callActionResponder);
@@ -59,13 +59,14 @@ class AgentController implements IController {
       this.removeAgentAction
     );
     this.router.get(
-      `${this.path}/:businessId/actions/:action`,
+      `${this.path}/:agentId/actions/:action`,
       authenticatedMiddleware,
       this.getAgentAction
     );
+    this.router.get(`${this.path}/:agentId`, authenticatedMiddleware, this.getAgentActions)
     this.router.put(
       `${this.path}/configure`,
-      validationMiddleware(validation.configureBusiness),
+      validationMiddleware(validation.configureAgent),
       authenticatedMiddleware,
       this.configureAgent
     );
@@ -77,8 +78,8 @@ class AgentController implements IController {
     next: NextFunction
   ): Promise<void> => {
     try {
-        const { agentName, agentType, agentPrimaryLanguage } = req.body;
-        const response = await this.agentService.createAgent(agentName, agentType, agentPrimaryLanguage)
+        const { agentName, agentType, agentPrimaryLanguage, businessId } = req.body;
+        const response = await this.agentService.createAgent(agentName, agentType, agentPrimaryLanguage, businessId)
 
         successResponse(201, "Agent created successfully", res, response)
     } catch (error: any) {
@@ -95,7 +96,9 @@ class AgentController implements IController {
     try {
       const twiml = new VoiceResponse();
 
-      const updatedTwiml = await this.agentService.acceptCall(twiml);
+      logger(req.body)
+
+      const updatedTwiml = await this.agentService.acceptCall(twiml, req.body.to);
 
       res.type("text/xml");
       res.send(updatedTwiml.toString());
@@ -143,13 +146,14 @@ class AgentController implements IController {
     try {
       const twiml = new VoiceResponse();
 
-      let { th_id, bus_id, ass_id, run_id }: any = req.query;
+      let { th_id, bus_id, ass_id, run_id, agnt_id }: any = req.query;
       const updatedTwiml = await this.agentService.actionResponder(
         twiml,
         th_id,
         bus_id,
         ass_id,
-        run_id
+        run_id,
+        agnt_id
       );
 
       res.type("text/xml");
@@ -170,7 +174,7 @@ class AgentController implements IController {
 
       await this.agentService.addActions(actions, agentId, businessId);
 
-      successResponse(200, "Agent action added successful", res);
+      successResponse(200, "Agent actions added successful", res);
     } catch (error: any) {
       return next(new HttpException(400, error.message));
     }
@@ -205,7 +209,25 @@ class AgentController implements IController {
         action
       );
 
-      successResponse(200, "Agent action removed successful", res, response);
+      successResponse(200, "Agent action retrieved successful", res, response);
+    } catch (error: any) {
+      return next(new HttpException(400, error.message));
+    }
+  };
+
+  private getAgentActions = async (
+    req: Request | any,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { agentId } = req.params;
+
+      const response = await this.agentService.getAgentActions(
+        agentId
+      );
+
+      successResponse(200, "Agent actions retrieved successful", res, response);
     } catch (error: any) {
       return next(new HttpException(400, error.message));
     }
@@ -217,10 +239,10 @@ class AgentController implements IController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { webhook, businessId } = req.body;
+      const { webhook, agentId } = req.body;
 
       const response = await this.agentService.configureAgent(
-        businessId,
+        agentId,
         webhook
       );
 

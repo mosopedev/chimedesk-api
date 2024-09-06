@@ -6,5 +6,6 @@ export default interface IUsage {
   currency: string;
   businessId: string;
   threadId: string;
+  agentId: string;
 }
   

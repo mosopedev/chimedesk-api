@@ -8,7 +8,8 @@ const AgentModel = new Schema(
       type: String,
       enum: ["chat", "call", "email"],
       required: true,
-    },
+    }, 
+    callAgentRole: { type: String, enum: ['inbound', 'outbound']},
     agentPhoneNumbers: [
       {
         phoneNumber: { type: String },
@@ -21,7 +22,7 @@ const AgentModel = new Schema(
       },
     ],
     agentWebhook: { type: String },
-    agentPersona: { type: String, default: "Caring and Humorous" },
+    agentPersona: { type: String, default: "Humorous" },
     allowedActions: [
       {
         action: {
@@ -36,7 +37,7 @@ const AgentModel = new Schema(
       },
     ],
     agentPrimaryLanguage: { type: String },
-    businessId: { type: String }
+    businessId: { type: Schema.ObjectId, ref: 'Business', required: true }
   },
   {
     timestamps: true,

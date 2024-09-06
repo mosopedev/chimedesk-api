@@ -27,6 +27,7 @@ class BusinessController implements IController {
         this.router.post(`${this.path}/create`, validationMiddleware(validation.createBusiness), authenticatedMiddleware, this.createBusiness)
         this.router.get(`${this.path}/:businessId`, authenticatedMiddleware, this.getBusiness)
         this.router.post(`${this.path}/knowledge-base`, upload.single('file'), authenticatedMiddleware, this.parseKnowledgeBase)
+        this.router.get(`${this.path}/:businessId/:agentId`, authenticatedMiddleware, this.getBusinessAndAgent)
     }
 
     private createBusiness = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
@@ -46,6 +47,22 @@ class BusinessController implements IController {
             if (!businessId) throw new Error("Invalid business Id")
 
             const response = await this.businessService.getBusiness(businessId)
+
+            logger(response)
+
+            successResponse(200, 'Business retrieved successful', res, response)
+        } catch (error: any) {
+            return next(new HttpException(400, error.message));
+        }
+    }
+
+    private getBusinessAndAgent = async (req: Request | any, res: Response, next: NextFunction): Promise<IUser | void> => {
+        try {
+            const { businessId, agentId } = req.params;
+
+            if (!businessId || !agentId) throw new Error("Invalid business or agent Id")
+
+            const response = await this.businessService.getBusinessAndAgent(businessId, agentId)
 
             logger(response)
 

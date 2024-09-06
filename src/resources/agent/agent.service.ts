@@ -27,20 +27,57 @@ class AgentService {
   private readonly businessService = new BusinessService();
   private readonly usageService = new UsageService();
 
-  public async createAgent(agentName: string, agentType: string, agentPrimaryLanguage: string) {
+  public async createAgent(
+    agentName: string,
+    agentType: string,
+    agentPrimaryLanguage: string,
+    businessId: string
+  ) {
     try {
-        const agent = agentModel.create({
-            agentName,
-            agentType,
-            agentPrimaryLanguage
-        })
+      const agent = agentModel.create({
+        agentName,
+        agentType,
+        agentPrimaryLanguage,
+        businessId,
+      });
+
+      if (!agent) throw new Error("Unable to create agent. Please try again.");
+
+      return agent;
     } catch (error: any) {
-        
+      throw new Error(error || "Unable to create agent. Please try again.");
     }
   }
 
-  public async acceptCall(twiml: VoiceResponse) {
+  public async acceptCall(twiml: VoiceResponse, agentPhoneNumber: string) {
     try {
+      const agentAndBusiness = await agentModel.aggregate([
+        {
+          $match: {
+            agentPhoneNumbers: {
+              $elemMatch: {
+                phoneNumber: agentPhoneNumber,
+              },
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: "Businesses",
+            localField: "businessId",
+            foreignField: "_id",
+            as: "business",
+          },
+        },
+        {
+          $project: {
+            "business._id": 1,
+            _id: 1,
+          },
+        },
+      ]);
+
+      logger(agentAndBusiness);
       const thread = await this.openAiClient.beta.threads.create();
 
       logger(thread);
@@ -48,7 +85,7 @@ class AgentService {
       twiml.say("Hello, how can i be of service today ?");
 
       twiml.gather({
-        action: `/agent/call/analyze?bus_id=66d26f260dad2d324b7d1822&th_id=${thread.id}&ass_id=${process.env.ASSISTANT_ID}&agnt_id=66d26f260dad2d324b7d1822`,
+        action: `/agent/call/analyze?bus_id=${agentAndBusiness[0].business._id}&th_id=${thread.id}&ass_id=${process.env.ASSISTANT_ID}&agnt_id=${agentAndBusiness[0]._id}`,
         input: ["speech"],
         speechTimeout: "2",
         method: "post",
@@ -80,6 +117,7 @@ class AgentService {
         role: "user",
         content: JSON.stringify({
           businessId: bus_id,
+          agentId: agnt_id,
           customerInput: speechResult,
           actionResult,
         }),
@@ -111,7 +149,7 @@ class AgentService {
                 output: JSON.stringify(
                   await this.businessService.getBusinessAndAgent(
                     args.id,
-                    agnt_id
+                    args.agentId
                   )
                 ),
                 tool_call_id: toolCall.id,
@@ -163,7 +201,12 @@ class AgentService {
           );
 
           if (runObject.usage)
-            this.usageService.addTokenUsage(runObject.usage, bus_id, th_id);
+            this.usageService.addTokenUsage(
+              runObject.usage,
+              bus_id,
+              th_id,
+              agnt_id
+            );
 
           break;
         }
@@ -203,7 +246,7 @@ class AgentService {
         twiml.say(agentResponse.responseMessage);
 
         twiml.gather({
-          action: `/agent/call/analyze?bus_id=66d26f260dad2d324b7d1822&th_id=${th_id}&ass_id=${process.env.ASSISTANT_ID}&agnt_id=${agnt_id}`,
+          action: `/agent/call/analyze?bus_id=${bus_id}&th_id=${th_id}&ass_id=${process.env.ASSISTANT_ID}&agnt_id=${agnt_id}`,
           input: ["speech"],
           speechTimeout: "2",
           method: "post",
@@ -228,10 +271,14 @@ class AgentService {
         if (
           !business?.humanOperatorPhoneNumbers ||
           business.humanOperatorPhoneNumbers.length < 1
-        )
-          throw new Error(
-            "Unable to transfer you. No human operator phone numbers provided"
+        ) {
+          twiml.say(
+            "Sorry, I'm unable to transfer you. It seems no human operator phone numbers was provided by the business. Please visit our website for a number to call. Good bye, and have a great day."
           );
+
+          twiml.hangup();
+          return;
+        }
 
         const phoneNumber =
           business.humanOperatorPhoneNumbers[
@@ -294,7 +341,7 @@ class AgentService {
         logger("action result run ", runObject);
 
         twiml.redirect(
-          `/agent/call/responder?bus_id=66d26f260dad2d324b7d1822&th_id=${th_id}&ass_id=${process.env.ASSISTANT_ID}&run_id=${runObject.id}`
+          `/agent/call/responder?bus_id=${bus_id}&th_id=${th_id}&ass_id=${process.env.ASSISTANT_ID}&run_id=${runObject.id}&agnt_id=${agnt_id}`
         );
 
         logger("After redirect!!!");
@@ -312,7 +359,10 @@ class AgentService {
               if (toolCall.function.name == "getBusiness") {
                 return {
                   output: JSON.stringify(
-                    await this.businessService.getBusiness(args.id)
+                    await this.businessService.getBusinessAndAgent(
+                      args.id,
+                      args.agentId
+                    )
                   ),
                   tool_call_id: toolCall.id,
                 };
@@ -335,7 +385,12 @@ class AgentService {
             );
 
           if (runObject.usage)
-            this.usageService.addTokenUsage(runObject.usage, bus_id, th_id);
+            this.usageService.addTokenUsage(
+              runObject.usage,
+              bus_id,
+              th_id,
+              agnt_id
+            );
         }
       } else {
         logger("agent response in else block", agentResponse);
@@ -356,7 +411,8 @@ class AgentService {
     th_id: string,
     bus_id: string,
     ass_id: string,
-    run_id: string
+    run_id: string,
+    agnt_id: string
   ) {
     try {
       logger("inside action responder!!!");
@@ -385,7 +441,7 @@ class AgentService {
           twiml.say(agentResponse.responseMessage);
 
           twiml.gather({
-            action: `/agent/call/analyze?bus_id=66d26f260dad2d324b7d1822&th_id=${th_id}&ass_id=${process.env.ASSISTANT_ID}`,
+            action: `/agent/call/analyze?bus_id=${bus_id}&th_id=${th_id}&ass_id=${process.env.ASSISTANT_ID}&agnt_id=${agnt_id}`,
             input: ["speech"],
             speechTimeout: "2",
             method: "post",
@@ -418,7 +474,7 @@ class AgentService {
       const updatedAgent = await agentModel.findByIdAndUpdate(
         agentId,
         {
-          allowedActions: actions
+          allowedActions: actions,
         },
         { new: true }
       );
@@ -435,14 +491,18 @@ class AgentService {
     }
   }
 
-  public async removeAction(businessId: string, actionId: string, agentId: string) {
+  public async removeAction(
+    businessId: string,
+    actionId: string,
+    agentId: string
+  ) {
     try {
       const business = await businessModel.findById(businessId);
 
       if (!business) throw new Error("Business not found.");
 
       const updatedAgent = await agentModel.findOneAndUpdate(
-        { _id: new ObjectId(agentId) },
+        { _id: new ObjectId(agentId), businessId: new ObjectId(businessId) },
         { $pull: { allowedActions: { _id: new ObjectId(actionId) } } },
         { new: true }
       );
@@ -495,16 +555,16 @@ class AgentService {
   }
 
   public async configureAgent(
-    businessId: string,
-    webhook: string
+    agentId: string,
+    agentWebhook: string
   ): Promise<IAgent> {
     try {
       const updatedAgent = await agentModel.findOneAndUpdate(
         {
-          _id: new ObjectId(businessId),
+          _id: new ObjectId(agentId),
         },
         {
-          webhook,
+          agentWebhook,
         },
         { new: true }
       );
@@ -540,6 +600,7 @@ class AgentService {
       );
     }
   }
+
   public async buyPhoneNumber(
     number: string,
     country: string,
@@ -556,7 +617,7 @@ class AgentService {
         business.twilioAccount.authToken
       );
 
-      //TODO Uncomment when call is ready to ship!
+      //TODO: Uncomment when call is ready to ship!
 
       // const purchasedNumber = await subTwilioClient.incomingPhoneNumbers.create(
       //     {
