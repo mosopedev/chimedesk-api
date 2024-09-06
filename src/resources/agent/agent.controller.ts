@@ -48,9 +48,15 @@ class AgentController implements IController {
     );
     this.router.post(
       `${this.path}/actions/create`,
-      validationMiddleware(validation.addAgentAction),
+      validationMiddleware(validation.addAgentActions),
       authenticatedMiddleware,
       this.addAgentActions
+    );
+    this.router.post(
+      `${this.path}/actions/add`,
+      validationMiddleware(validation.addAgentAction),
+      authenticatedMiddleware,
+      this.addAgentAction
     );
     this.router.post(
       `${this.path}/actions/remove`,
@@ -175,6 +181,22 @@ class AgentController implements IController {
       await this.agentService.addActions(actions, agentId, businessId);
 
       successResponse(200, "Agent actions added successful", res);
+    } catch (error: any) {
+      return next(new HttpException(400, error.message));
+    }
+  };
+
+  private addAgentAction = async (
+    req: Request | any,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { agentId, action, businessId } = req.body;
+
+      await this.agentService.addAgentAction(action, agentId, businessId);
+
+      successResponse(200, "Agent action added successful", res);
     } catch (error: any) {
       return next(new HttpException(400, error.message));
     }

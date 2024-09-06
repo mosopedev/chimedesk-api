@@ -16,10 +16,10 @@ export const createAgent = Joi.object({
   agentName: Joi.string().required().label("Agent Name"),
   agentType: Joi.string().required().label("Agent Type"),
   agentPrimaryLanguage: Joi.string().required().label("Agent Language"),
-  businessId: Joi.string().required().label('Business ID')
+  businessId: Joi.string().required().label("Business ID"),
 });
 
-export const addAgentAction = Joi.object({
+export const addAgentActions = Joi.object({
   businessId: Joi.string().required().label("Business ID"),
   agentId: Joi.string().required(),
   actions: Joi.array().items(
@@ -33,6 +33,20 @@ export const addAgentAction = Joi.object({
       ),
     }).required()
   ),
+});
+
+export const addAgentAction = Joi.object({
+  businessId: Joi.string().required().label("Business ID"),
+  agentId: Joi.string().required(),
+  action: Joi.object({
+    action: Joi.string().required(),
+    schemaData: Joi.array().items(
+      Joi.object({
+        key: Joi.string().required(),
+        keyDescription: Joi.string().required(),
+      })
+    ),
+  }).required(),
 });
 
 export const removeAction = Joi.object({

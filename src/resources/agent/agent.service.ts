@@ -491,6 +491,50 @@ class AgentService {
     }
   }
 
+  /** Adds a single action to agent's list of allowed actions */
+  public async addAgentAction(
+    action: {
+      action: string;
+      schemaData: {
+        key: string;
+        keyDescription: string;
+      }[];
+    },
+    agentId: string,
+    businessId: string
+  ) {
+    try {
+      const business = await businessModel.findById(businessId);
+
+      if (!business) throw new Error("Business not found.");
+
+      const updatedAgent = await agentModel.findByIdAndUpdate(
+        agentId,
+        {
+          $push: {
+            allowedActions: action,
+          },
+        },
+        { new: true }
+      );
+
+      if (!updatedAgent)
+        throw new Error("Unable to setup agent actions, please try again.");
+
+      logger(updatedAgent);
+    } catch (error: any) {
+      logger(error);
+      throw new Error(
+        error || "Unable to setup agent actions, please try again."
+      );
+    }
+  }
+
+  /**Removes a single actions from agent's list of allowed actions
+   * @param businessId Business ID
+   * @param actionId The ID of the action to remove
+   * @param agentId The ID of the agent which has the action
+   */
   public async removeAction(
     businessId: string,
     actionId: string,
