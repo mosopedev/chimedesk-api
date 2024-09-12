@@ -1,17 +1,15 @@
 // options for cors
 import { Request, Response, NextFunction } from "express";
+import logger from "./logger";
 
 export const corsOption =  (req: Request, res: Response, next: NextFunction) => {
+  const allowedOrigins = ["*"];
+  const origin = req.headers.origin as string;
 
-  const allowedOrigins = ["http://localhost:4000"];
+  res.setHeader("Access-Control-Allow-Origin", '*');
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers",  "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-api-key");
 
-  const origin: any = req.headers.origin;
-
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE");
-  res.setHeader("Access-Control-Allow-Headers", "content-type, Authorization, application/json");
   next();
 };
 

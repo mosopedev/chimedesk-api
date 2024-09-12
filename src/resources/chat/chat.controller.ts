@@ -11,16 +11,10 @@ import authenticatedMiddleware from "@/middlewares/authenticate.middleware";
 import ChatService from "../chat/chat.service";
 import { verifyAgentApiKey } from "@/middlewares/agent.auth.middleware";
 
-class AgentController implements IController {
+class ChatController implements IController {
   public readonly path = "/agent";
   public readonly router = Router();
-  private readonly agentService = new AgentService();
   private readonly chatService = new ChatService();
-  private readonly openAiClient = new OpenAI({
-    organization: process.env.OPENAI_ORG_ID,
-    project: process.env.OPENAI_PROJECT_ID,
-    apiKey: process.env.OPENAI_SECRET_KEY,
-  });
 
   constructor() {
     this.initializeEndpoints();
@@ -36,6 +30,7 @@ class AgentController implements IController {
     next: NextFunction
   ): Promise<void> => {
     try {
+      logger(req.agent)
       const response = await this.chatService.createChatSession(req.agent)
 
       successResponse(201, "Chat session created", res, response)
@@ -47,4 +42,4 @@ class AgentController implements IController {
 
 }
 
-export default AgentController;
+export default ChatController;

@@ -11,7 +11,7 @@ export const verifyAgentApiKey = async (req: Request | any, res: Response, next:
   }
 
   try {
-    const agent = await new AgentService().verifyAgentApiKey(apiKey, req.body.agent);
+    const agent = await new AgentService().getAgentById(req.body.agent);
 
     if (!(await bcrypt.compare(apiKey, agent.agentApiKey))) {
         return next(new HttpException(403, 'Invalid api secret.')) 

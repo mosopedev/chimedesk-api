@@ -13,6 +13,7 @@ import UsageService from "../usage/usage.service";
 import agentModel from "./agent.model";
 import { ObjectId } from "mongodb";
 import IAgent from "./agent.interface";
+import crypto from "crypto";
 
 class AgentService {
   private readonly openAiClient = new OpenAI({
@@ -34,18 +35,33 @@ class AgentService {
     businessId: string
   ) {
     try {
+      const agentApiKey = `agnt_${crypto.randomBytes(32).toString("hex")}`;
       const agent = agentModel.create({
         agentName,
         agentType,
         agentPrimaryLanguage,
         businessId,
+        agentApiKey,
+        agentApiKeySample: agentApiKey.slice(0, 15),
       });
 
       if (!agent) throw new Error("Unable to create agent. Please try again.");
 
-      return agent;
+      return { agent, agentApiKey };
     } catch (error: any) {
       throw new Error(error || "Unable to create agent. Please try again.");
+    }
+  }
+
+  public async getAgentById(agentId: string) {
+    try {
+      const agent = await agentModel.findById(agentId).select("agentApiKey");
+
+      if (!agent) throw new Error("Agent not found.");
+
+      return agent;
+    } catch (error: any) {
+      throw new Error(error || "Unable to retrieve agent. Please try again.");
     }
   }
 
