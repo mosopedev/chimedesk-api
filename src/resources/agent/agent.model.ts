@@ -37,7 +37,13 @@ const AgentModel = new Schema(
       },
     ],
     agentPrimaryLanguage: { type: String },
-    businessId: { type: Schema.ObjectId, ref: 'Business', required: true }
+    businessId: { type: Schema.ObjectId, ref: 'Business', required: true },
+    agentApiKey: {
+      type: String
+    },
+    agentApiKeySample: {
+       type: String
+    }
   },
   {
     timestamps: true,

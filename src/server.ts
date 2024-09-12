@@ -14,4 +14,6 @@ const app = new App([new AgentController, new AuthController, new UserController
 validateEnv()
 app.startServer()
 
-export default {}
+export default {
+    socketIO: app.socketIo
+}
