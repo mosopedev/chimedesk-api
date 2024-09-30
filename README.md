@@ -4,12 +4,12 @@
 
 ## Instant Support, Infinite Possibilities
 
-With **Chimedesk**, your AI agents can handle customer queries, complaints, and much more. From canceling orders, booking appointments, and escalating to a human agent, to creating support tickets, Chimedesk goes beyond just responding—it takes action.
+With **Chimedesk**, your AI agents can handle customer queries, complaints, and much more. From cancelling orders, booking appointments, and escalating to a human agent, to creating support tickets, Chimedesk goes beyond just responding—it takes action.
 
 ---
 
 ### Project Links
-- **Visit Chimedesk:** ehemmehmm. current under construction
+- **Visit Chimedesk:** ehemmehmm. ⚠️ currently under construction.
 - **Integrate Chimedesk Chatbot on Your Website:** [Link to npm package](#)
 - **Backend API Documentation:** [View API Documentation on Postman](https://documenter.getpostman.com/view/23648952/2sAXqzYeew)
 
