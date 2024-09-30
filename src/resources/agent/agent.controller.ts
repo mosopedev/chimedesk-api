@@ -35,6 +35,7 @@ class AgentController implements IController {
     this.router.post(`${this.path}/call/accept`, this.acceptPhoneCall);
     this.router.post(`${this.path}/call/analyze`, this.analyzeCallIntent);
     this.router.post(`${this.path}/call/responder`, this.callActionResponder);
+    this.router.post(`${this.path}/status`, authenticatedMiddleware, this.updateAgentStatus)
     this.router.get(
       `${this.path}/phones/:country`,
       authenticatedMiddleware,
@@ -102,9 +103,9 @@ class AgentController implements IController {
     try {
       const twiml = new VoiceResponse();
 
-      logger(req.body)
+      logger(req.body.Called)
 
-      const updatedTwiml = await this.agentService.acceptCall(twiml, req.body.to);
+      const updatedTwiml = await this.agentService.acceptCall(twiml, req.body.Called);
 
       res.type("text/xml");
       res.send(updatedTwiml.toString());
@@ -273,6 +274,21 @@ class AgentController implements IController {
       return next(new HttpException(400, error.message));
     }
   };
+
+  private updateAgentStatus = async (
+    req: Request | any,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { active, agentId } = req.body;
+
+      const response = await this.agentService.updateAgentStatus(agentId, active)
+      successResponse(200, "Business updated successfully", res, response);
+    } catch (error: any) {
+      return next(new HttpException(400, error.message));
+    }
+  }
 
   private purchasePhoneNumber = async (
     req: Request | any,

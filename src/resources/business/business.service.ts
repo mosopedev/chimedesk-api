@@ -13,6 +13,7 @@ import { v4 as uuid } from "uuid";
 import { randomUUID } from "crypto";
 import { ObjectId } from "mongodb";
 import agentModel from "../agent/agent.model";
+import IAgent from "../agent/agent.interface";
 
 class BusinessService {
   private readonly twilioClient = twilio(
@@ -80,34 +81,55 @@ class BusinessService {
   public async getBusinessAndAgent(
     id: string,
     agentId: string
-  ): Promise<IBusiness | undefined> {
+  ): Promise<{
+    agent: IAgent,
+    business: IBusiness
+  }> {
     try {
-      const businessInfo = await agentModel.aggregate([
-        {
-          $match: {
-            _id: new ObjectId(agentId),
-          },
-        },
-        {
-          $lookup: {
-            from: "Businesses",
-            localField: "businessId",
-            foreignField: "_id",
-            as: "businessDetails",
-          },
-        },
-        {
-          $project: {
-            "businessDetails.parsedKnowledgeBase": 0,
-          },
-        },
-      ]);
+      const agent = await agentModel.findById(agentId, {
+        agentWebhook: false,
+        agentApiKey: false,
+        agentApiKeySample: false,
+        createdAt: false,
+        updatedAt: false
+      })
+      const business = await businessModel.findById(id, {
+        parsedKnowledgeBase: false,
+        createdAt: false,
+        updatedAt: false,
+        uniqueName: false,
+        admin: false
+      })
 
-      console.log(businessInfo);
+      // const businessInfo = await agentModel.aggregate([
+      //   {
+      //     $match: {
+      //       _id: new ObjectId(agentId),
+      //     },
+      //   },
+      //   {
+      //     $lookup: {
+      //       from: "Businesses",
+      //       localField: "businessId",
+      //       foreignField: "_id",
+      //       as: "businessDetails",
+      //     },
+      //   },
+      //   {
+      //     $project: {
+      //       "businessDetails.parsedKnowledgeBase": 0,
+      //     },
+      //   },
+      // ]);
 
-      if (!businessInfo) throw new Error("Business not found.");
+      // console.log(businessInfo);
 
-      return businessInfo[0];
+      if (!business || !agent) throw new Error("Business not found.");
+
+      return {
+        agent,
+        business
+      };
     } catch (error: any) {
       throw new Error(
         error || "Failed to retrieve business. Please try again."

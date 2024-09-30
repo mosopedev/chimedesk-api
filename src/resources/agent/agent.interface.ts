@@ -2,6 +2,7 @@ export default interface IAgent {
   agentName: string;
   agentType: string;
   agentPersona: string;
+  isActive: boolean;
   agentPhoneNumbers: Array<{
     phoneNumber: String;
     country: string;

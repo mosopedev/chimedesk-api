@@ -67,41 +67,63 @@ class AgentService {
 
   public async acceptCall(twiml: VoiceResponse, agentPhoneNumber: string) {
     try {
-      const agentAndBusiness = await agentModel.aggregate([
-        {
-          $match: {
-            agentPhoneNumbers: {
-              $elemMatch: {
-                phoneNumber: agentPhoneNumber,
-              },
-            },
-          },
-        },
-        {
-          $lookup: {
-            from: "Businesses",
-            localField: "businessId",
-            foreignField: "_id",
-            as: "business",
-          },
-        },
-        {
-          $project: {
-            "business._id": 1,
-            _id: 1,
-          },
-        },
-      ]);
+      // const agentAndBusiness = await agentModel.aggregate([
+      //   {
+      //     $match: {
+      //       agentPhoneNumbers: {
+      //         $elemMatch: {
+      //           phoneNumber: agentPhoneNumber,
+      //         },
+      //       },
+      //     },
+      //   },
+      //   {
+      //     $lookup: {
+      //       from: "Business",
+      //       localField: "businessId",
+      //       foreignField: "_id",
+      //       as: "business",
+      //     },
+      //   },
+      //   {
+      //     $project: {
+      //       "business._id": 1,
+      //       _id: 1,
+      //     },
+      //   },
+      // ]);
 
-      logger(agentAndBusiness);
+
+      const agent = await agentModel.findOne(
+        {
+          'agentPhoneNumbers.phoneNumber': agentPhoneNumber
+        },
+        {
+          businessId: true,
+        }
+      );
+
+      const business = await businessModel.findById(agent?.businessId).select('name')
+
+      logger(business, agent)
+
+      if (!agent || !business) {
+        twiml.say("Invalid Phone Number. No business with phone number found.");
+        twiml.hangup();
+
+        return twiml;
+      }
+
       const thread = await this.openAiClient.beta.threads.create();
 
       logger(thread);
 
-      twiml.say("Hello, how can i be of service today ?");
+      twiml.say(
+        `Hello, Welcome to ${business.name}. How may I be of service to you today?`
+      );
 
       twiml.gather({
-        action: `/agent/call/analyze?bus_id=${agentAndBusiness[0].business._id}&th_id=${thread.id}&ass_id=${process.env.ASSISTANT_ID}&agnt_id=${agentAndBusiness[0]._id}`,
+        action: `/agent/call/analyze?bus_id=${business._id}&th_id=${thread.id}&ass_id=${process.env.ASSISTANT_ID}&agnt_id=${agent._id}`,
         input: ["speech"],
         speechTimeout: "2",
         method: "post",
@@ -298,9 +320,9 @@ class AgentService {
 
         const phoneNumber =
           business.humanOperatorPhoneNumbers[
-            Math.floor(
-              Math.random() * business.humanOperatorPhoneNumbers.length
-            )
+          Math.floor(
+            Math.random() * business.humanOperatorPhoneNumbers.length
+          )
           ];
 
         const dial = twiml.dial();
@@ -328,10 +350,6 @@ class AgentService {
         });
 
         logger(response.data);
-
-        twiml.pause({
-          length: 5,
-        });
 
         const userMessage =
           await this.openAiClient.beta.threads.messages.create(th_id, {
@@ -468,7 +486,7 @@ class AgentService {
         }
       }
       return twiml;
-    } catch (error: any) {}
+    } catch (error: any) { }
   }
 
   public async addActions(
@@ -638,88 +656,123 @@ class AgentService {
     }
   }
 
-  public async getAvailablePhoneNumbers(country: string) {
+  public async updateAgentStatus(
+    agentId: string,
+    active: boolean,
+  ) {
     try {
-      const availableNumbers = await this.twilioClient
-        .availablePhoneNumbers(country)
-        .local.list();
-      const price = await this.twilioClient.pricing.v1.phoneNumbers
-        .countries(country)
-        .fetch();
-      logger(availableNumbers);
+      const agent = await agentModel.findById(agentId)
 
-      const response = {
-        availableNumbers,
-        price,
-      };
+      if (!agent) throw new Error('Agent not found.')
 
-      return response;
-    } catch (error: any) {
-      throw new Error(
-        error || "Unable to retrieve available phone numbers. Please try again."
-      );
-    }
+      if (!active) {
+        const updatedAgent = await agentModel.findOneAndUpdate(
+          {
+            _id: new ObjectId(agentId),
+          },
+          {
+            isActive: active
+          },
+          { new: true }
+        );
+
+        if (!updatedAgent)
+          throw new Error("Unable to update business. Please try again.");
+
+        return updatedAgent
+      }
+
+      // const business = await businessModel.findById()
+
+      // if (!updatedAgent)
+      //   throw new Error("Unable to update business. Please try again.");
+
+      // return updatedAgent;
+    } catch(error: any) {
+      throw new Error(error || "Unable to update business. please try again.");
   }
+}
+
+  public async getAvailablePhoneNumbers(country: string) {
+  try {
+    const availableNumbers = await this.twilioClient
+      .availablePhoneNumbers(country)
+      .local.list();
+    const price = await this.twilioClient.pricing.v1.phoneNumbers
+      .countries(country)
+      .fetch();
+    logger(availableNumbers);
+
+    const response = {
+      availableNumbers,
+      price,
+    };
+
+    return response;
+  } catch (error: any) {
+    throw new Error(
+      error || "Unable to retrieve available phone numbers. Please try again."
+    );
+  }
+}
 
   public async buyPhoneNumber(
-    number: string,
-    country: string,
-    businessId: string,
-    agentId: string
-  ): Promise<void> {
-    try {
-      const business = await businessModel.findById(businessId);
+  number: string,
+  country: string,
+  businessId: string,
+  agentId: string
+): Promise < void> {
+  try {
+    const business = await businessModel.findById(businessId);
 
-      if (!business) throw new Error("Business not found.");
+    if(!business) throw new Error("Business not found.");
 
-      const subTwilioClient = twilio(
-        business.twilioAccount.sid,
-        business.twilioAccount.authToken
-      );
+    const subTwilioClient = twilio(
+      business.twilioAccount.sid,
+      business.twilioAccount.authToken
+    );
 
-      //TODO: Uncomment when call is ready to ship!
+    const purchasedNumber = await subTwilioClient.incomingPhoneNumbers.create(
+      {
+        phoneNumber: number,
+        voiceUrl:
+          "https://jawfish-needed-safely.ngrok-free.app/support/call/accept",
+        voiceMethod: "POST",
+        friendlyName: business.name,
+      }
+    );
 
-      // const purchasedNumber = await subTwilioClient.incomingPhoneNumbers.create(
-      //     {
-      //         phoneNumber: number,
-      //         voiceUrl:
-      //             "https://jawfish-needed-safely.ngrok-free.app/support/call/accept",
-      //         voiceMethod: "POST",
-      //         friendlyName: business.name,
-      //     }
-      // );
-
-      const price = await this.twilioClient.pricing.v1.phoneNumbers
-        .countries(country)
-        .fetch();
-      logger(price);
+    const price = await this.twilioClient.pricing.v1.phoneNumbers
+      .countries(country)
+      .fetch();
+    logger(price);
 
       const updatedAgent = await agentModel.findByIdAndUpdate(
-        agentId,
-        {
-          $push: {
-            agentPhoneNumbers: {
-              phoneNumber: number,
-              country: price.country,
-              isoCountry: price.isoCountry,
-              numberType: "local",
-              basePrice: (price.phoneNumberPrices[0].basePrice || 1.15) * 100, // amount in cents
-              currentPrice:
-                (price.phoneNumberPrices[0].currentPrice || 1.15) * 100,
-              priceUnit: price.priceUnit,
-            },
+      agentId,
+      {
+        $push: {
+          agentPhoneNumbers: {
+            phoneNumber: number,
+            country: price.country,
+            isoCountry: price.isoCountry,
+            numberType: "local",
+            basePrice: (price.phoneNumberPrices[0].basePrice || 1.15) * 100, // amount in cents
+            currentPrice:
+              (price.phoneNumberPrices[0].currentPrice || 1.15) * 100,
+            priceUnit: price.priceUnit,
           },
         },
-        { new: true }
-      );
+      },
+      { new: true }
+    );
 
-      logger(updatedAgent?.agentPhoneNumbers);
-    } catch (error: any) {
-      throw new Error(
-        error || "Unable to purchase phone number. Please try again."
-      );
-    }
+    logger(updatedAgent?.agentPhoneNumbers);
+  } catch(error: any) {
+    throw new Error(
+      error || "Unable to purchase phone number. Please try again."
+    );
   }
+}
 }
 
 export default AgentService;

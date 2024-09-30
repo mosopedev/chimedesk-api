@@ -7,6 +7,7 @@ export default interface IBusiness {
   humanOperatorPhoneNumbers?: string[];
   email: string;
   country: string;
+  logo: string;
   twilioAccount: {
     sid: string;
     dateCreated: Date;

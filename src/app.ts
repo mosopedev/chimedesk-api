@@ -9,11 +9,12 @@ import cookieParser from "cookie-parser";
 import http from "http"; 
 import { Server as SocketIOServer } from "socket.io";
 
-// import ExpressMongoSanitize from 'express-mongo-sanitize'
+import ExpressMongoSanitize from 'express-mongo-sanitize'
 import corsOption from "./utils/corsOption";
 import IController from "./interfaces/controller.interface";
 import ErrorMiddleware from "./middlewares/error.middleware";
 import logger from "./utils/logger";
+import { setupSocketListeners } from "./resources/chat/chat.service";
 
 class App {
   public express: Application;
@@ -30,6 +31,7 @@ class App {
     this.initializeControllers(controllers);
     this.initializeErrorHandling();
     this.initializeSocketIO();
+    setupSocketListeners(this.io)
   }
 
   private initializeMiddlewares(): void {
@@ -45,7 +47,7 @@ class App {
     });
     this.express.use(express.urlencoded({ extended: false }));
     this.express.use(compression());
-    // this.express.use(ExpressMongoSanitize())
+    this.express.use(ExpressMongoSanitize())
     this.express.use(cookieParser());
     // this.express.use('/uploads', express.static('uploads'))
   }
@@ -59,8 +61,8 @@ class App {
     private initializeSocketIO(): void {
       this.io = new SocketIOServer(this.server, {
         cors: {
-          origin: "*",
-          methods: ["GET", "POST"]
+          origin: "http://localhost:3000",
+          methods: ["GET", "POST", "OPTION"]
         }
       });
     }
@@ -99,7 +101,4 @@ class App {
 }
 
 export default App;
-function cors(corsOption: (req: express.Request, res: express.Response, next: express.NextFunction) => void): any {
-  throw new Error("Function not implemented.");
-}
 

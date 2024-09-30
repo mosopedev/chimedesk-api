@@ -2,7 +2,7 @@ import translateError from "@/utils/mongod.helper";
 import userModel from "../user/user.model";
 import IUser from "../user/user.interface";
 import * as token from "@/utils/token";
-import { ObjectId } from "mongoose";
+import { ObjectId } from "mongodb";
 import logger from "@/utils/logger";
 import authModel from "./auth.model";
 import IAuth from "./auth.interface";
@@ -11,6 +11,8 @@ import bcrypt from "bcrypt";
 import generateOtp from "@/utils/otp";
 import moment from "moment";
 import Stripe from "stripe";
+import businessModel from "../business/business.model";
+import IBusiness from "../business/business.interface";
 
 class AuthService {
   private readonly stripe = new Stripe(`${process.env.STRIPE_SECRET_KEY}`);
@@ -105,6 +107,7 @@ class AuthService {
       photo?: string;
       isEmailVerified: boolean;
     };
+    ownedBusinesses: IBusiness[]
   }> {
     try {
       const user: IUser | null = await userModel.findOne({
@@ -112,6 +115,10 @@ class AuthService {
       });
 
       if (!user) throw new Error("Incorrect email or password");
+
+      const ownedBusinesses = await businessModel.find({ admin: new ObjectId(user.id)}, { _id: true, name: true })
+
+      logger(ownedBusinesses)
 
       const { firstname, lastname, isEmailVerified } = user;
 
@@ -142,6 +149,7 @@ class AuthService {
           email,
           isEmailVerified,
         },
+        ownedBusinesses
       };
     } catch (error: any) {
       logger(error);

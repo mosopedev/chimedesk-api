@@ -9,6 +9,7 @@ const AgentModel = new Schema(
       enum: ["chat", "call", "email"],
       required: true,
     }, 
+    isActive: { type: Boolean, default: false },
     callAgentRole: { type: String, enum: ['inbound', 'outbound']},
     agentPhoneNumbers: [
       {

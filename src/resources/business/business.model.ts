@@ -15,6 +15,7 @@ const BusinessModel = new Schema(
     humanOperatorPhoneNumbers: [{ type: String }],
     email: { type: String, required: true },
     country: { type: String, required: true },
+    logo: { type: String },
     twilioAccount: {
         sid: { type: String },
         dateCreated: { type: Date },
