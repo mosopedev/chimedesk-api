@@ -9,9 +9,9 @@ With **Chimedesk**, your AI agents can handle customer queries, complaints, and 
 ---
 
 ### Project Links
-
+- **Visit Chimedesk:** ehemmehmm. current under construction
 - **Integrate Chimedesk Chatbot on Your Website:** [Link to npm package](#)
-- **Backend API Documentation:** [View API Documentation on Postman](#)
+- **Backend API Documentation:** [View API Documentation on Postman](https://documenter.getpostman.com/view/23648952/2sAXqzYeew)
 
 ---
 
