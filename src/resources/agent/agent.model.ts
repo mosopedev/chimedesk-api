@@ -9,6 +9,7 @@ const AgentModel = new Schema(
       enum: ["chat", "call", "email"],
       required: true,
     }, 
+    isActive: { type: Boolean, default: false },
     callAgentRole: { type: String, enum: ['inbound', 'outbound']},
     agentPhoneNumbers: [
       {
@@ -37,7 +38,13 @@ const AgentModel = new Schema(
       },
     ],
     agentPrimaryLanguage: { type: String },
-    businessId: { type: Schema.ObjectId, ref: 'Business', required: true }
+    businessId: { type: Schema.ObjectId, ref: 'Business', required: true },
+    agentApiKey: {
+      type: String
+    },
+    agentApiKeySample: {
+       type: String
+    }
   },
   {
     timestamps: true,

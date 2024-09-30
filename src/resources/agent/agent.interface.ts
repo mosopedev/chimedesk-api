@@ -2,6 +2,7 @@ export default interface IAgent {
   agentName: string;
   agentType: string;
   agentPersona: string;
+  isActive: boolean;
   agentPhoneNumbers: Array<{
     phoneNumber: String;
     country: string;
@@ -14,6 +15,8 @@ export default interface IAgent {
   agentWebhook: string;
   agentPrimaryLanguage: string;
   businessId: string;
+  agentApiKey: string;
+  agentApiKeySample: string;
   allowedActions?: Array<{
     action: string;
     method: string;

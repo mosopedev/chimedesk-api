@@ -1,17 +1,16 @@
-// options for cors
 import { Request, Response, NextFunction } from "express";
 
 export const corsOption =  (req: Request, res: Response, next: NextFunction) => {
+  const allowedOrigins = ["https://godesk-frontend.vercel.app", "http://localhost:3000"];
+  const origin = req.headers.origin as string;
 
-  const allowedOrigins = ["http://localhost:4000"];
-
-  const origin: any = req.headers.origin;
-
-  if (allowedOrigins.includes(origin)) {
+  if(allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE");
-  res.setHeader("Access-Control-Allow-Headers", "content-type, Authorization, application/json");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers",  "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-api-key");
+  res.setHeader("Access-Control-Allow-Credentials", 'true')
+
   next();
 };
 
